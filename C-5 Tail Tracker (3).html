@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C-5M GALAXY // TAIL TRACKER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg-deep: #10130d;
+  --bg-panel: #1a1f15;
+  --bg-panel-alt: #212715;
+  --line: #3f4a30;
+  --line-dim: #2a3220;
+  --text: #d9e2c4;
+  --text-dim: #8a9578;
+  --green: #5fe85a;
+  --amber: #ffb020;
+  --red: #ff5b4d;
+  --mono: 'Share Tech Mono', monospace;
+  --disp: 'Rajdhani', sans-serif;
+}
+html, body { min-height: 100%; width: 100%; background: var(--bg-deep); }
+body {
+  font-family: var(--mono);
+  color: var(--text);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 1rem 4rem;
+}
+
+/* ── Radar background ── */
+.radar-bg { position: fixed; inset: 0; z-index: 0; background: var(--bg-deep); overflow: hidden; }
+.radar-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--line-dim) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-dim) 1px, transparent 1px);
+  background-size: 42px 42px;
+  opacity: 0.5;
+}
+.radar-rings {
+  position: absolute; top: 50%; left: 50%;
+  width: 1400px; height: 1400px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+.radar-rings::before, .radar-rings::after, .radar-rings span {
+  content: ''; position: absolute; border: 1px solid var(--line-dim); border-radius: 50%;
+}
+.radar-rings::before { inset: 15%; }
+.radar-rings::after { inset: 32%; }
+.radar-sweep {
+  position: absolute; top: 50%; left: 50%;
+  width: 1400px; height: 1400px;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(from 0deg, rgba(95,232,90,0.14), transparent 20%);
+  border-radius: 50%;
+  animation: sweep 8s linear infinite;
+}
+@keyframes sweep { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+/* ── App shell ── */
+.app {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 460px;
+  background: var(--bg-panel);
+  border: 2px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 20px 50px rgba(0,0,0,0.5);
+}
+.banner {
+  padding: 1.1rem 1.3rem 0.9rem;
+  border-bottom: 2px solid var(--line);
+  background: linear-gradient(180deg, var(--bg-panel-alt), var(--bg-panel));
+}
+.banner-title {
+  font-family: var(--disp); font-weight: 700; font-size: 26px;
+  letter-spacing: 0.06em; color: var(--text);
+}
+.banner-sub {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+  color: var(--green); margin-top: 2px; text-transform: uppercase;
+}
+
+.body { padding: 1.3rem 1.3rem 1.5rem; }
+
+.input-row { display: flex; gap: 8px; margin-bottom: 8px; }
+#tailInput {
+  flex: 1; min-width: 0;
+  background: #0d1009; border: 1px solid var(--line); color: var(--text);
+  font-family: var(--mono); font-size: 16px; letter-spacing: 0.05em;
+  padding: 10px 12px; border-radius: 2px; text-transform: uppercase;
+}
+#tailInput:focus { outline: none; border-color: var(--green); }
+#tailInput::placeholder { color: var(--text-dim); text-transform: none; }
+
+.find-btn, .scan-btn {
+  font-family: var(--disp); font-weight: 700; letter-spacing: 0.08em;
+  border: 1px solid var(--line); border-radius: 2px; cursor: pointer;
+  background: var(--bg-panel-alt); color: var(--green);
+  transition: background 0.15s, color 0.15s;
+}
+.find-btn { padding: 10px 18px; font-size: 15px; }
+.find-btn:hover, .scan-btn:hover { background: var(--green); color: #0d1009; }
+.find-btn:disabled, .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--bg-panel-alt); color: var(--green); }
+
+.scan-btn { width: 100%; padding: 8px 12px; font-size: 12px; margin-bottom: 0.7rem; }
+
+.fleet-grid { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 0.9rem; }
+.fleet-chip {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.03em;
+  border: 1px solid var(--line-dim); border-radius: 2px; background: transparent;
+  color: var(--text-dim); padding: 4px 7px; cursor: pointer;
+}
+.fleet-chip:hover { border-color: var(--green); color: var(--green); }
+
+.status { min-height: 20px; font-size: 12px; color: var(--text-dim); letter-spacing: 0.04em; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 8px; }
+.spinner {
+  width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--green);
+  border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.card { display: none; }
+.card.show { display: block; animation: fadein 0.2s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+.status-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border: 1px solid var(--line); border-radius: 2px; margin-bottom: 10px;
+}
+.status-row.airborne { border-color: var(--green); }
+.status-row.ground { border-color: var(--amber); }
+.status-row.cached { border-color: var(--text-dim); }
+.status-tail { font-family: var(--disp); font-weight: 700; font-size: 20px; letter-spacing: 0.05em; }
+.status-badge {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; padding: 3px 8px; border-radius: 2px;
+}
+.status-badge.airborne { background: rgba(95,232,90,0.15); color: var(--green); }
+.status-badge.ground { background: rgba(255,176,32,0.15); color: var(--amber); }
+.status-badge.cached { background: rgba(138,149,120,0.15); color: var(--text-dim); }
+.stale-note { color: var(--text-dim); font-size: 11px; }
+.cached-dot { background: var(--text-dim); box-shadow: 0 0 6px var(--text-dim); }
+
+.location-box {
+  font-size: 13px; color: var(--text); padding: 8px 12px;
+  border: 1px solid var(--line-dim); border-radius: 2px; margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.stat { border: 1px solid var(--line-dim); border-radius: 2px; padding: 7px 8px; text-align: center; }
+.stat-label { font-size: 9px; color: var(--text-dim); letter-spacing: 0.08em; margin-bottom: 3px; }
+.stat-val { font-size: 14px; color: var(--text); }
+
+.coords { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; letter-spacing: 0.02em; }
+
+.live-badge { font-size: 10px; color: var(--text-dim); letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 6px; }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+.err { font-size: 13px; color: var(--red); padding: 8px 12px; border: 1px solid var(--red); border-radius: 2px; }
+.err a { color: var(--amber); }
+
+.footer { font-size: 10px; color: var(--text-dim); text-align: center; margin-top: 1rem; letter-spacing: 0.02em; }
+.footer a { color: var(--text-dim); }
+
+@media (max-width: 480px) {
+  .app { max-width: 100%; }
+  .banner-title { font-size: 22px; }
+  .stats { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="radar-bg">
+  <div class="radar-grid"></div>
+  <div class="radar-rings"></div>
+  <div class="radar-sweep"></div>
+</div>
+
+<div class="app">
+  <div class="banner">
+    <div class="banner-title">C-5M GALAXY</div>
+    <div class="banner-sub">Tail Tracker &middot; Live ADS-B</div>
+  </div>
+  <div class="body">
+    <div class="input-row">
+      <input id="tailInput" type="text" placeholder="ICAO HEX" autocomplete="off" spellcheck="false">
+      <button id="goBtn" class="find-btn">TRACK</button>
+    </div>
+    <button id="scanBtn" class="scan-btn">SCAN FLEET LIST</button>
+    <div id="fleetGrid" class="fleet-grid"></div>
+    <div id="status" class="status"></div>
+    <div id="card" class="card"></div>
+    <p class="footer">Data link: <a href="https://adsb.fi/" target="_blank">adsb.fi</a> live ADS-B &middot; current position only, not a historical track log</p>
+  </div>
+</div>
+
+<script>
+// Point this at your own Cloudflare Worker (CORS proxy to adsb.fi).
+// These are ICAO 24-bit hex addresses (ae05xx = US military block),
+// looked up via the worker's ?hex= param -> adsb.fi's /v2/hex/ endpoint.
+const WORKER_URL = "https://noisy-frog-4459.simmons-rob.workers.dev";
+
+// Tracked fleet -- ICAO hex codes from your list. Fill in `label` with
+// the actual tail/serial once you have it; falls back to the hex if blank.
+const AIRCRAFT = [
+  { hex: "ae051a", label: "" },
+  { hex: "ae051d", label: "" },
+  { hex: "ae055b", label: "" },
+  { hex: "ae055d", label: "" },
+  { hex: "ae0567", label: "" },
+  { hex: "ae0568", label: "" },
+  { hex: "ae056d", label: "" },
+  { hex: "ae0570", label: "" },
+  { hex: "ae0575", label: "" },
+  { hex: "ae0577", label: "" },
+  { hex: "ae0579", label: "" },
+  { hex: "ae057a", label: "" },
+  { hex: "ae057b", label: "" },
+  { hex: "ae057d", label: "" },
+  { hex: "ae0587", label: "" },
+  { hex: "ae0589", label: "" }
+];
+
+const input = document.getElementById('tailInput');
+const goBtn = document.getElementById('goBtn');
+const scanBtn = document.getElementById('scanBtn');
+const statusEl = document.getElementById('status');
+const card = document.getElementById('card');
+const fleetGrid = document.getElementById('fleetGrid');
+
+goBtn.addEventListener('click', () => lookup(input.value.trim()));
+input.addEventListener('keydown', e => { if (e.key === 'Enter') lookup(input.value.trim()); });
+scanBtn.addEventListener('click', scanFleet);
+
+AIRCRAFT.forEach(a => {
+  const chip = document.createElement('button');
+  chip.className = 'fleet-chip';
+  chip.textContent = a.label || a.hex.toUpperCase();
+  chip.addEventListener('click', () => { input.value = a.hex.toUpperCase(); lookup(a.hex); });
+  fleetGrid.appendChild(chip);
+});
+
+function setStatus(msg, spinning) {
+  statusEl.innerHTML = spinning
+    ? '<div class="spinner"></div><span>' + msg + '</span>'
+    : (msg ? '<span>' + msg + '</span>' : '');
+}
+
+function fmtAlt(a) {
+  if (a === undefined || a === null) return '—';
+  if (a === 'ground') return 'On ground';
+  return Number(a).toLocaleString() + ' ft';
+}
+
+function labelFor(hex) {
+  const entry = AIRCRAFT.find(a => a.hex.toLowerCase() === hex.toLowerCase());
+  return (entry && entry.label) ? entry.label : hex.toUpperCase();
+}
+
+async function lookup(hex) {
+  if (!hex) return;
+  hex = hex.trim().toUpperCase();
+  card.classList.remove('show');
+  card.innerHTML = '';
+  goBtn.disabled = true;
+  setStatus('Querying data link for ' + hex + '...', true);
+
+  try {
+    const resp = await fetch(WORKER_URL + '?hex=' + encodeURIComponent(hex));
+    if (!resp.ok) throw new Error('Server returned ' + resp.status);
+    const data = await resp.json();
+
+    const ac = data.ac && data.ac[0];
+    if (!ac) {
+      setStatus('');
+      card.innerHTML = '<div class="err"><strong>No saved location.</strong> Hex ' + hex + ' has no live position and nothing in the cache either — it hasn\'t broadcast recently enough for the 2-minute cache to catch it.<br><br>' +
+        '<a href="https://globe.adsbexchange.com/?icao=' + hex.toLowerCase() + '" target="_blank">Check ' + hex + ' on ADS-B Exchange →</a></div>';
+      card.classList.add('show');
+      goBtn.disabled = false;
+      return;
+    }
+
+    renderResult(ac, hex, data.cached, data.cachedAt);
+  } catch (e) {
+    setStatus('');
+    card.innerHTML = '<div class="err">Data link error: ' + e.message + '</div>';
+    card.classList.add('show');
+  }
+  goBtn.disabled = false;
+}
+
+async function scanFleet() {
+  scanBtn.disabled = true;
+  goBtn.disabled = true;
+  card.classList.remove('show');
+  card.innerHTML = '';
+
+  for (let i = 0; i < AIRCRAFT.length; i++) {
+    const hex = AIRCRAFT[i].hex;
+    setStatus('Scanning fleet list... ' + hex.toUpperCase() + ' (' + (i + 1) + '/' + AIRCRAFT.length + ')', true);
+    try {
+      const resp = await fetch(WORKER_URL + '?hex=' + encodeURIComponent(hex));
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      const ac = data.ac && data.ac[0];
+      if (!ac) continue;
+      input.value = hex.toUpperCase();
+      setStatus('');
+      renderResult(ac, hex, data.cached, data.cachedAt);
+      scanBtn.disabled = false;
+      goBtn.disabled = false;
+      return;
+    } catch (e) { continue; }
+  }
+
+  setStatus('');
+  card.innerHTML = '<div class="err"><strong>No saved location.</strong> None of the fleet returned a live or cached position. Every hex is either out of range right now or hasn\'t been caught by a cache run yet.</div>';
+  card.classList.add('show');
+  scanBtn.disabled = false;
+  goBtn.disabled = false;
+}
+
+function renderResult(ac, hex, cached, cachedAt) {
+  const altRaw = ac.alt_baro;
+  const alt = Number(altRaw);
+  const onGround = !altRaw || altRaw === 'ground' || alt < 1000;
+  const speed = ac.gs ? Math.round(ac.gs) : null;
+  const lat = ac.lat, lon = ac.lon;
+  const region = getRegion(lat, lon);
+  const locationStr = (lat !== undefined && lat !== null)
+    ? (onGround ? 'On the ground' : 'Airborne') + (region ? ' — near ' + region : '')
+    : 'Position not reported';
+  const displayName = labelFor(hex);
+  const reg = (ac.r || '').trim();
+
+  const ageStr = cached && cachedAt ? formatAge(Date.now() - cachedAt) : null;
+  const badgeText = cached ? 'LAST KNOWN' : (onGround ? 'ON GROUND' : 'AIRBORNE');
+  const badgeClass = cached ? 'cached' : (onGround ? 'ground' : 'airborne');
+  const liveBadge = cached
+    ? '<span class="live-badge"><span class="live-dot cached-dot"></span> Cached position, ' + ageStr + ' old &middot; adsb.fi</span>'
+    : '<span class="live-badge"><span class="live-dot"></span> Live ADS-B via adsb.fi</span>';
+
+  card.innerHTML =
+    '<div class="status-row ' + badgeClass + '">' +
+      '<div class="status-tail">' + displayName + '</div>' +
+      '<div class="status-badge ' + badgeClass + '">' + badgeText + '</div>' +
+    '</div>' +
+    '<div class="location-box">' + locationStr + (cached ? ' <span class="stale-note">(as of last cache)</span>' : '') + '</div>' +
+    '<div class="stats">' +
+      '<div class="stat"><div class="stat-label">ALTITUDE</div><div class="stat-val">' + fmtAlt(altRaw) + '</div></div>' +
+      '<div class="stat"><div class="stat-label">SPEED</div><div class="stat-val">' + (speed ? speed + ' kts' : '—') + '</div></div>' +
+      '<div class="stat"><div class="stat-label">CALLSIGN</div><div class="stat-val">' + ((ac.flight || '').trim() || '—') + '</div></div>' +
+    '</div>' +
+    '<div class="coords">HEX ' + hex.toUpperCase() + (reg ? '  ·  REG ' + reg : '') +
+      ((lat !== undefined && lat !== null) ? '  ·  LAT ' + lat.toFixed(4) + '  ·  LON ' + lon.toFixed(4) : '') + '</div>' +
+    '<div>' + liveBadge + '</div>';
+
+  card.classList.add('show');
+}
+
+function formatAge(ms) {
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return mins + ' min';
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return hrs + 'h ' + rem + 'm';
+}
+
+// Plain lat/lon -> region name. Coarse regional bounding boxes; not precise geocoding.
+function getRegion(lat, lon) {
+  try {
+    if (lat === undefined || lat === null || lon === undefined || lon === null) return null;
+    const lt = lat, ln = lon;
+    if (lt > 54 && ln < -130) return 'Alaska';
+    if (lt > 18 && lt < 23 && ln < -154) return 'Hawaii';
+    if (ln < -140 && lt < 55) return 'the Pacific Ocean';
+    if (ln > -40 && ln < -10 && lt > 20 && lt < 60) return 'the Atlantic Ocean';
+    if (lt > 49 && lt < 85 && ln > -141 && ln < -52) {
+      if (ln < -110) return 'western Canada';
+      if (ln < -85) return 'the Canadian prairies';
+      return 'eastern Canada';
+    }
+    if (lt < 30 && lt > 14 && ln > -118 && ln < -86) return 'Mexico';
+    if (lt > 10 && lt < 25 && ln > -85 && ln < -60) return 'the Caribbean';
+    if (lt < 14) return 'South America';
+    if (lt > 32 && lt < 42 && ln > -125 && ln < -114) return 'California';
+    if (lt > 42 && lt < 49 && ln > -125 && ln < -116) return 'the Pacific Northwest';
+    if (lt > 31 && lt < 37 && ln > -115 && ln < -109) return 'Arizona';
+    if (lt > 31 && lt < 37 && ln > -109 && ln < -103) return 'New Mexico';
+    if (lt > 37 && lt < 42 && ln > -114 && ln < -109) return 'Utah';
+    if (lt > 37 && lt < 45 && ln > -116 && ln < -111) return 'Nevada / Idaho';
+    if (lt > 41 && lt < 49 && ln > -111 && ln < -104) return 'Montana / Wyoming';
+    if (lt > 37 && lt < 41 && ln > -109 && ln < -102) return 'Colorado';
+    if (lt > 25 && lt < 37 && ln > -107 && ln < -93) {
+      if (lt < 30) return 'south Texas';
+      return 'Texas';
+    }
+    if (lt > 36 && lt < 41 && ln > -103 && ln < -94) return 'Kansas / Nebraska';
+    if (lt > 43 && lt < 49 && ln > -104 && ln < -90) return 'the Dakotas / Minnesota';
+    if (lt > 36 && lt < 40 && ln > -96 && ln < -89) return 'Missouri';
+    if (lt > 33 && lt < 37 && ln > -95 && ln < -90) return 'Oklahoma';
+    if (lt > 33 && lt < 36 && ln > -95 && ln < -89) return 'Arkansas';
+    if (lt > 28 && lt < 33 && ln > -94 && ln < -88) return (ln < -91) ? 'Louisiana' : 'Mississippi';
+    if (lt > 40 && lt < 47 && ln > -90 && ln < -80) {
+      if (ln < -87) return 'Illinois';
+      if (ln < -84) return 'Indiana';
+      return 'Ohio';
+    }
+    if (lt > 41 && lt < 48 && ln > -90 && ln < -82) return 'Michigan';
+    if (lt > 35 && lt < 39 && ln > -90 && ln < -81) return (lt > 37) ? 'Kentucky' : 'Tennessee';
+    if (lt > 30 && lt < 35 && ln > -89 && ln < -81) return (ln < -85) ? 'Alabama' : 'Georgia';
+    if (lt > 24 && lt < 31 && ln > -88 && ln < -79) return (lt < 27) ? 'south Florida' : 'Florida';
+    if (lt > 31 && lt < 37 && ln > -82 && ln < -75) {
+      if (lt < 33) return 'South Carolina';
+      if (lt < 36) return 'North Carolina';
+    }
+    if (lt > 36 && lt < 40 && ln > -83 && ln < -75) return 'Virginia';
+    if (lt > 38 && lt < 42 && ln > -80 && ln < -73) return (lt > 40) ? 'Pennsylvania' : 'the Mid-Atlantic';
+    if (lt > 41 && lt < 47 && ln > -73.5 && ln < -66) {
+      if (lt > 44) return 'Maine / Vermont';
+      if (ln < -71) return 'upstate New York';
+      return 'New England';
+    }
+    if (lt > 40 && lt < 41.5 && ln > -74.5 && ln < -73) return 'the New York City area';
+    if (ln < -100) return 'the western US';
+    if (ln < -90) return 'the midwest';
+    if (lt > 35 && lt < 72 && ln > -10 && ln < 40) {
+      if (ln < 3) return 'western Europe';
+      if (ln < 15) return 'central Europe';
+      return 'eastern Europe';
+    }
+    return 'the eastern US';
+  } catch (e) { return null; }
+}
+</script>
+</body>
+</html>
